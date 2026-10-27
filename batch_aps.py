@@ -48,6 +48,8 @@ def run_one(
     page_settle_time: float,
     skip_existing: bool = True,
     profile_dir: str | None = None,
+    chrome_executable: str | None = None,
+    headless: bool = False,
     scraper_timeout: float = 180,
 ) -> tuple[str, int | str]:
     out_file = output_dir / f"{journal}_v{volume}_i{issue:02d}.json"
@@ -69,6 +71,10 @@ def run_one(
     ]
     if profile_dir:
         cmd += ["--profile-dir", profile_dir]
+    if chrome_executable:
+        cmd += ["--chrome-executable", chrome_executable]
+    if headless:
+        cmd.append("--headless")
 
     try:
         result = subprocess.run(
@@ -153,6 +159,16 @@ def main():
         help="Chrome profile dir (default: ~/.config/google-chrome)",
     )
     parser.add_argument(
+        "--chrome-executable",
+        default=None,
+        help="Chrome/Chromium executable passed to the scraper",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run Chrome/Chromium in headless mode",
+    )
+    parser.add_argument(
         "--no-skip-existing",
         action="store_true",
         help="Re-fetch all issues, including valid JSON files with articles",
@@ -200,6 +216,8 @@ def main():
                 page_settle_time=args.page_settle_time,
                 skip_existing=not args.no_skip_existing,
                 profile_dir=args.profile_dir,
+                chrome_executable=args.chrome_executable,
+                headless=args.headless,
                 scraper_timeout=args.scraper_timeout,
             )
             if status == "ok":

@@ -30,6 +30,7 @@ import websockets
 from bs4 import BeautifulSoup
 
 DEFAULT_USER_PROFILE = os.path.expanduser("~/.config/google-chrome")
+DEFAULT_CHROME_EXECUTABLE = os.environ.get("APS_CHROME_EXECUTABLE", "google-chrome")
 
 
 def find_free_port() -> int:
@@ -219,7 +220,15 @@ def parse_issue(html: str, url: str) -> dict:
     }
 
 
-def scrape_issue(journal: str, volume: str, issue: str, profile_dir: str, page_settle_time: float = 60.0) -> dict:
+def scrape_issue(
+    journal: str,
+    volume: str,
+    issue: str,
+    profile_dir: str,
+    page_settle_time: float = 60.0,
+    chrome_executable: str = DEFAULT_CHROME_EXECUTABLE,
+    headless: bool = False,
+) -> dict:
     url = f"https://journals.aps.org/{journal}/issues/{volume}/{issue}"
 
     tmp_profile = tempfile.mkdtemp(prefix="aps_chrome_profile_")
@@ -228,7 +237,7 @@ def scrape_issue(journal: str, volume: str, issue: str, profile_dir: str, page_s
 
     port = find_free_port()
     cmd = [
-        "google-chrome",
+        chrome_executable,
         "--no-sandbox",
         f"--user-data-dir={copied_profile}",
         f"--remote-debugging-port={port}",
@@ -236,6 +245,8 @@ def scrape_issue(journal: str, volume: str, issue: str, profile_dir: str, page_s
         "--no-default-browser-check",
         "about:blank",
     ]
+    if headless:
+        cmd[1:1] = ["--headless=new", "--disable-gpu"]
 
     proc = subprocess.Popen(
         cmd,
@@ -284,6 +295,16 @@ def main():
         default=60.0,
         help="Seconds to wait after page load before reading HTML (default: 60)",
     )
+    parser.add_argument(
+        "--chrome-executable",
+        default=DEFAULT_CHROME_EXECUTABLE,
+        help="Chrome/Chromium executable (default: APS_CHROME_EXECUTABLE or google-chrome)",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run Chrome/Chromium in headless mode",
+    )
     args = parser.parse_args()
 
     if not os.path.isdir(args.profile_dir):
@@ -296,6 +317,8 @@ def main():
         args.issue,
         args.profile_dir,
         page_settle_time=args.page_settle_time,
+        chrome_executable=args.chrome_executable,
+        headless=args.headless,
     )
 
     article_count = len(result.get("article", []))
