@@ -114,7 +114,10 @@ async def fetch_html_via_cdp(ws_url: str, target_url: str, load_timeout: float =
 
     cdp_call.counter = 1
 
-    async with websockets.connect(ws_url) as ws:
+    # APS pages may spend longer than websockets' default 20-second ping
+    # timeout in Cloudflare/dynamic-content waits. CDP is local-only here, so
+    # disable protocol keepalive and rely on the explicit operation timeouts.
+    async with websockets.connect(ws_url, ping_interval=None) as ws:
         await cdp_call(ws, "Runtime.enable")
         await cdp_call(ws, "Page.enable")
         await cdp_call(ws, "Page.navigate", {"url": target_url})
